@@ -51,7 +51,7 @@ async function run() {
     // ----------------------------------COLLECTION----------------------------------
     const usersCollection = client.db("LearnUp").collection("users");
     const insCollection = client.db("LearnUp").collection("instructors");
-    const classCollection = client.db("LearnUp").collection("classes");
+    const classCollection = client.db("LearnUp").collection("Courses");
     const myClassCollection = client.db("LearnUp").collection("myclass");
     const bookMarkCollection = client.db("LearnUp").collection("bookMarks");
     const feedbackCollection = client.db("LearnUp").collection("feedback");
@@ -248,6 +248,7 @@ async function run() {
       const result = await classCollection.find().toArray();
       res.send(result);
     });
+
     app.get("/instructor", async (req, res) => {
       const result = await insCollection.find().toArray();
       res.send(result);
@@ -263,10 +264,68 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/updateCourse/:id", async (req, res) => {
+      const id = req.params.id;
+
+      try {
+        const query = { _id: new ObjectId(id) };
+        const course = await classCollection.findOne(query);
+
+        if (course) {
+          // course found, send it as a response
+          res.json({ success: true, data: course });
+        } else {
+          // No matching course found
+          res.status(404).json({ success: false, message: "course not found" });
+        }
+      } catch (error) {
+        // Handle any errors that occurred during the retrieval process
+        console.error("Error:", error);
+        res.status(500).json({
+          success: false,
+          message: "An error occurred while retrieving the course",
+        });
+      }
+    });
+
     app.post("/addclasses", verifyJWT, async (req, res) => {
       const newItem = req.body;
       const result = await classCollection.insertOne(newItem);
       res.send(result);
+    });
+
+    app.patch("/updateCourse/:id", verifyJWT, async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            img: req.body.img,
+            courseTitle: req.body.courseTitle,
+            insName: req.body.insName,
+            email: req.body.email,
+            seats: req.body.seats,
+            oldPrice: req.body.oldPrice,
+            newPrice: req.body.newPrice,
+            classDetails: req.body.classDetails,
+            lastUpdated: req.body.lastUpdated,
+            duration: req.body.duration,
+            status: req.body.status,
+          },
+        };
+        const result = await classCollection.updateOne(filter, updateDoc);
+
+        if (result.modifiedCount === 0) {
+          return res.status(404).json({ error: "Course not found" });
+        }
+
+        res
+          .status(200)
+          .json({ message: "Course updated successfully", result });
+      } catch (error) {
+        res.status(500).json({ error: "Internal server error" });
+      }
     });
 
     app.delete("/myClasses/:id", verifyJWT, async (req, res) => {
